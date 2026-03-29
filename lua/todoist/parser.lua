@@ -11,6 +11,31 @@ local _generate_temp_id = function()
   return "tmp_" .. vim.fn.tempname()
 end
 
+local _header_match = function(line)
+  local title, filter = line:match("^##+ (.+) ::(.+)$")
+  if title then
+    return { title = title, filter = filter }
+  end
+end
+
+local _existing_task_match = function(line)
+  local indent, checkbox, content, id = line:match("^(%s*)- %[([%sx])%] (.+) ::(%S+)$")
+  if id then
+    return { indent = indent, checkbox = checkbox, content = content, id = id }
+  else
+    return nil
+  end
+end
+
+local _new_task_match = function(line)
+  local indent, checkbox, content = line:match("^(%s*)- %[([%sx])%] (.+)$")
+  if content and not content:match(" ::%S+$") then
+    return { indent = indent, checkbox = checkbox, content = content, id = _generate_temp_id() }
+  else
+    return nil
+  end
+end
+
 ---@class TodoistTask
 ---@field id string Todoist task ID
 ---@field content string Task text
@@ -78,37 +103,10 @@ M.parse = function(lines, buf)
   local current_section
   local indent_size = _get_indent_size(buf)
 
-  local header_match = function(line)
-    local title, filter = line:match("^##+ (.+) ::(.+)$")
-    if title then
-      return { title = title, filter = filter }
-    else
-      return nil
-    end
-  end
-
-  local existing_task_match = function(line)
-    local indent, checkbox, content, id = line:match("^(%s*)- %[([%sx])%] (.+) ::(%S+)$")
-    if id then
-      return { indent = indent, checkbox = checkbox, content = content, id = id }
-    else
-      return nil
-    end
-  end
-
-  local new_task_match = function(line)
-    local indent, checkbox, content = line:match("^(%s*)- %[([%sx])%] (.+)$")
-    if content and not content:match(" ::%S+$") then
-      return { indent = indent, checkbox = checkbox, content = content, id = _generate_temp_id() }
-    else
-      return nil
-    end
-  end
-
   local depth_stack = {}
 
   for _, line in ipairs(lines) do
-    local header, existing_task, new_task = header_match(line), existing_task_match(line), new_task_match(line)
+    local header, existing_task, new_task = _header_match(line), _existing_task_match(line), _new_task_match(line)
     if header then
       if current_section ~= nil then
         table.insert(sections, current_section)
@@ -126,10 +124,7 @@ M.parse = function(lines, buf)
         parent_id = parent_id,
       })
       depth_stack[depth] = task.id
-    else
-      goto continue
     end
-    ::continue::
   end
 
   if current_section ~= nil then
