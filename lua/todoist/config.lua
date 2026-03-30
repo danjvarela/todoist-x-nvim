@@ -37,9 +37,12 @@ M.merge = function(user_config)
   _config = vim.tbl_deep_extend("force", M.defaults, user_config or {})
 end
 
----Returns the active merged config.
+---Returns the active merged config. Falls back to defaults if setup() was never called.
 ---@return TodoistConfig
 M.get = function()
+  if vim.tbl_isempty(_config) then
+    return M.defaults
+  end
   return _config
 end
 
