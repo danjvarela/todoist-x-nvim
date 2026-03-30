@@ -3,8 +3,8 @@ local _config = {}
 
 ---@class TodoistWindowConfig
 ---@field type "float"|"split"|"vsplit" Window style
----@field width number Fraction of screen width (float) or column count (split)
----@field height number Fraction of screen height (float) or row count (split)
+---@field width number For "float": fraction of screen width (0-1). For "vsplit": number of columns.
+---@field height number For "float": fraction of screen height (0-1). For "split": number of rows.
 
 ---@class TodoistSection
 ---@field title string Display name shown in the buffer heading
