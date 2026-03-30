@@ -1,15 +1,47 @@
 local M = {}
 
+---Find an existing buffer named "Todoist", or nil.
+---@return integer|nil
+local function _find_buf()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_get_name(buf):match("Todoist$") then
+      return buf
+    end
+  end
+end
+
+---Find a window displaying the given buffer, or nil.
+---@param buf integer
+---@return integer|nil
+local function _find_win(buf)
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(win) == buf then
+      return win
+    end
+  end
+end
+
 M.open = function()
   local config = require("todoist.config").get()
   local window_config = config.window
-  local buf = vim.api.nvim_create_buf(false, true)
+
+  -- Reuse existing buffer if present
+  local buf = _find_buf()
+  if buf then
+    local existing_win = _find_win(buf)
+    if existing_win then
+      -- Already visible: just focus it
+      vim.api.nvim_set_current_win(existing_win)
+      return { buf = buf, win = existing_win }
+    end
+  else
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].filetype = "markdown"
+    vim.bo[buf].buftype = "acwrite"
+    vim.api.nvim_buf_set_name(buf, "Todoist")
+  end
+
   local win
-
-  vim.bo[buf].filetype = "markdown"
-  vim.bo[buf].buftype = "acwrite"
-  vim.api.nvim_buf_set_name(buf, "Todoist")
-
   if window_config.type == "float" then
     local width = math.floor(vim.o.columns * window_config.width)
     local height = math.floor(vim.o.lines * window_config.height)
@@ -38,15 +70,10 @@ M.open = function()
   vim.wo[win].concealcursor = "nc"
 
   vim.api.nvim_buf_call(buf, function()
-    vim.cmd([[
-      syn match TodoistConceal / ::\S\+/ conceal containedin=ALL
-    ]])
+    vim.cmd([[syn match TodoistConceal / ::\S\+/ conceal containedin=ALL]])
   end)
 
-  return {
-    buf = buf,
-    win = win,
-  }
+  return { buf = buf, win = win }
 end
 
 M.render_buffer = function(buf, lines)
