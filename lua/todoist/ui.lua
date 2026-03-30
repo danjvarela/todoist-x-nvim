@@ -70,7 +70,7 @@ M.open = function()
   vim.wo[win].concealcursor = "nc"
 
   vim.api.nvim_buf_call(buf, function()
-    vim.cmd([[syn match TodoistConceal / ::\S\+/ conceal containedin=ALL]])
+    vim.cmd([[syn match TodoistConceal / ::.*/ conceal containedin=ALL]])
   end)
 
   return { buf = buf, win = win }
