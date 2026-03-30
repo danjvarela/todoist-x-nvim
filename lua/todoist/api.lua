@@ -34,12 +34,28 @@ end
 ---@return TodoistTask[]|nil
 M.get_tasks = function(filter)
   local headers = _get_headers()
-  if not headers then return nil end
+  if not headers then
+    return nil
+  end
   local res = curl.get(BASE_URL .. "/tasks", {
     headers = headers,
     query = { filter = filter },
   })
-  return _handle_response(res)
+  local data = _handle_response(res)
+  if not data then
+    return nil
+  end
+
+  local tasks = {}
+  for _, t in ipairs(data.results or {}) do
+    table.insert(tasks, {
+      id = t.id,
+      content = t.content,
+      is_completed = t.checked == true,
+      parent_id = t.parent_id ~= vim.NIL and t.parent_id or nil,
+    })
+  end
+  return tasks
 end
 
 ---@class TodoistSyncCommand
@@ -54,7 +70,9 @@ end
 ---@return table|nil
 M.sync_commands = function(commands)
   local headers = _get_headers()
-  if not headers then return nil end
+  if not headers then
+    return nil
+  end
   local res = curl.post(BASE_URL .. "/sync", {
     headers = headers,
     body = { commands = vim.fn.json_encode(commands) },
