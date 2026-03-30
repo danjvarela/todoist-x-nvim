@@ -18,7 +18,7 @@ local _get_headers = function()
     return nil
   end
 
-  return { Authorization = "Bearer " .. token, ["Content-Type"] = "application/json" }
+  return { Authorization = "Bearer " .. token }
 end
 
 local _handle_response = function(res)
@@ -29,48 +29,37 @@ local _handle_response = function(res)
   end
 end
 
-local _request = function(method, path, opts)
+---Fetches tasks matching a Todoist filter query.
+---@param filter string Todoist filter query string (e.g. "today", "#Inbox")
+---@return TodoistTask[]|nil
+M.get_tasks = function(filter)
   local headers = _get_headers()
   if not headers then return nil end
-  local res = curl[method](BASE_URL .. path, vim.tbl_extend("force", { headers = headers }, opts or {}))
+  local res = curl.get(BASE_URL .. "/tasks", {
+    headers = headers,
+    query = { filter = filter },
+  })
   return _handle_response(res)
 end
 
----@param filter string Todoist filter query string
----@return TodoistTask[]|nil
-M.get_tasks = function(filter)
-  return _request("get", "/tasks", { query = { filter = filter } })
-end
+---@class TodoistSyncCommand
+---@field type string Command type (e.g. "item_add", "item_update", "item_delete", "item_complete", "item_uncomplete")
+---@field uuid string Unique command ID for idempotency and result mapping
+---@field temp_id string|nil Temporary ID for new resources, so they can be referenced in the same batch
+---@field args table Command arguments (varies by type)
 
----@param fields table Task fields: content (required), parent_id, project_id, description, due_string, priority, labels
----@return TodoistTask|nil
-M.create_task = function(fields)
-  return _request("post", "/tasks", { body = vim.fn.json_encode(fields) })
-end
-
----@param id string Task ID
----@param fields table Fields to update: content, description, due_string, priority, labels
----@return TodoistTask|nil
-M.update_task = function(id, fields)
-  return _request("post", "/tasks/" .. id, { body = vim.fn.json_encode(fields) })
-end
-
----@param id string Task ID
----@return nil
-M.close_task = function(id)
-  return _request("post", "/tasks/" .. id .. "/close")
-end
-
----@param id string Task ID
----@return nil
-M.reopen_task = function(id)
-  return _request("post", "/tasks/" .. id .. "/reopen")
-end
-
----@param id string Task ID
----@return nil
-M.delete_task = function(id)
-  return _request("delete", "/tasks/" .. id)
+---Sends a batch of Sync API commands in a single request.
+---Returns the full sync response including `sync_status` and `temp_id_mapping`.
+---@param commands TodoistSyncCommand[]
+---@return table|nil
+M.sync_commands = function(commands)
+  local headers = _get_headers()
+  if not headers then return nil end
+  local res = curl.post(BASE_URL .. "/sync", {
+    headers = headers,
+    body = { commands = vim.fn.json_encode(commands) },
+  })
+  return _handle_response(res)
 end
 
 return M
