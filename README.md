@@ -1,93 +1,106 @@
-# nvim-lua-plugin-template
+# todoist-x-nvim
 
-This repository is a template for Neovim plugins written in Lua.
+A Neovim plugin that integrates with [Todoist](https://todoist.com). Open your tasks in a markdown buffer, edit them naturally, and save to sync changes back to Todoist.
 
-The intention is that you use this template to create a new repository where you then adapt this readme and add your plugin code.
-The template includes the following:
+## Requirements
 
-- GitHub workflows and configurations to run linters and tests
-- Packaging of tagged releases and upload to [LuaRocks][luarocks]
-  if a [`LUAROCKS_API_KEY`][luarocks-api-key] is added
-  to the [GitHub Actions secrets][gh-actions-secrets]
-- Minimal test setup:
-  - A `scm` [rockspec][rockspec-format], `nvim-lua-plugin-scm-1.rockspec`
-  - A `.busted` file
-- EditorConfig
-- A .luacheckrc
+- Neovim 0.11+
+- [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
+- A [Todoist API token](https://app.todoist.com/app/settings/integrations/developer)
 
+## Installation
 
-To get started writing a Lua plugin, I recommend reading `:help lua-guide` and
-`:help write-plugin`.
+### lazy.nvim
 
-## Scope
+```lua
+{
+  "your-username/todoist-x-nvim",
+  dependencies = { "nvim-lua/plenary.nvim" },
+  opts = {
+    -- see Configuration below
+  },
+}
+```
 
-Anything that the majority of plugin authors will want to have is in scope of
-this starter template. Anything that is controversial is out-of-scope.
+## Configuration
+
+Pass options to `setup()` (or via `opts` in lazy.nvim). All fields are optional.
+
+```lua
+require("todoist").setup({
+  -- API token. Falls back to vim.env.TODOIST_API_TOKEN if not set here.
+  api_token = nil,
+
+  window = {
+    type = "float",  -- "float" | "split" | "vsplit"
+    width = 0.8,     -- float: fraction of screen width; vsplit: number of columns
+    height = 0.8,    -- float: fraction of screen height; split: number of rows
+  },
+
+  -- Each section maps a heading to a Todoist filter query.
+  -- See: https://todoist.com/help/articles/introduction-to-filters
+  sections = {
+    { title = "Today", filter = "today" },
+    { title = "Inbox", filter = "#Inbox" },
+  },
+
+  conceallevel = 2,  -- conceals the ::filter and ::id markers in the buffer
+})
+```
+
+### API token
+
+Set the `TODOIST_API_TOKEN` environment variable or pass `api_token` to `setup()`.
+
+```bash
+export TODOIST_API_TOKEN="your_token_here"
+```
 
 ## Usage
 
-- Click [Use this template][use-this-template]. Do not fork.
-- Rename `nvim-lua-plugin-scm-1.rockspec` and change the `package` name
-  to the name of your plugin.
+Run `:Todoist` to open the task buffer. Neovim fetches your tasks and renders them as a markdown checklist.
 
-## Template License
+### Buffer format
 
-The template itself is licensed under the [MIT license](https://en.wikipedia.org/wiki/MIT_License).
-The template doesn't include a LICENSE file. You should add one after creating your repository.
+```markdown
+## Today ::today
 
----
+- [ ] Buy milk ::2abc123
+  - [ ] Skimmed ::3def456
+- [x] Read emails ::4ghi789
 
+## Inbox ::#Inbox
 
-The remainder of the README is text that can be preserved in your plugin:
+- [ ] New task idea ::5jkl012
+```
 
----
+- `## Heading ::filter` — section header; the `::filter` part is concealed
+- `- [ ] task ::id` — incomplete task; the `::id` part is concealed
+- `- [x] task ::id` — completed task
+- Subtasks are indented by `shiftwidth` spaces per level
 
+### Editing
+
+Edit the buffer like any markdown file:
+
+| Action | How |
+|---|---|
+| Complete a task | Change `[ ]` to `[x]` |
+| Uncomplete a task | Change `[x]` to `[ ]` |
+| Add a new task | Add a new `- [ ] task` line (no `::id` needed) |
+| Delete a task | Delete the line |
+| Rename a task | Edit the text |
+
+### Saving
+
+Write the buffer (`:w`) to sync all changes to Todoist in a single batched request.
 
 ## Development
 
 ### Run tests
 
-
-Running tests requires either
-
-- [luarocks][luarocks]
-- or [busted][busted] and [nlua][nlua]
-
-to be installed[^1].
-
-[^1]: The test suite assumes that `nlua` has been installed
-      using luarocks into `~/.luarocks/bin/`.
-
-You can then run:
+Requires Neovim 0.11+ (uses `vim.pack.add` to bootstrap [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) automatically).
 
 ```bash
-luarocks test --local
-# or
-busted
+make test
 ```
-
-Or if you want to run a single test file:
-
-```bash
-luarocks test spec/path_to_file.lua --local
-# or
-busted spec/path_to_file.lua
-```
-
-If you see an error like `module 'busted.runner' not found`:
-
-```bash
-eval $(luarocks path --no-bin)
-```
-
-For this to work you need to have Lua 5.1 set as your default version for
-luarocks. If that's not the case you can pass `--lua-version 5.1` to all the
-luarocks commands above.
-
-[rockspec-format]: https://github.com/luarocks/luarocks/wiki/Rockspec-format
-[luarocks]: https://luarocks.org
-[luarocks-api-key]: https://luarocks.org/settings/api-keys
-[gh-actions-secrets]: https://docs.github.com/en/actions/security-guides/encrypted-secrets#creating-encrypted-secrets-for-a-repository
-[busted]: https://lunarmodules.github.io/busted/
-[nlua]: https://github.com/mfussenegger/nlua
-[use-this-template]: https://github.com/new?template_name=nvim-lua-plugin-template&template_owner=nvim-lua
